@@ -27,7 +27,13 @@ You need Node.js 20 or newer (the Windows installer offers to install it) and Gi
 undoable setup
 ```
 
-Try it without any agent:
+See it work in one minute, on a sample project (no agent needed):
+
+```bash
+undoable demo
+```
+
+Or ask how any command would be treated:
 
 ```bash
 undoable check "rm -rf build"                # backed up first
