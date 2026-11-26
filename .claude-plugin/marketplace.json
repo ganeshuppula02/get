@@ -1,0 +1,5 @@
+{
+  "name": "undoable",
+  "owner": { "name": "Ganesh Uppula" },
+  "plugins": [{ "name": "undoable", "source": "./claude-mod", "description": "A live Undoable panel beside the chat: what was backed up, what's waiting for you, and Undo buttons" }]
+}

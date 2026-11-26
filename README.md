@@ -41,6 +41,16 @@ undoable check "DELETE FROM orders WHERE id = 3"   # the rows are backed up firs
 undoable check "terraform destroy"           # waits for a person
 ```
 
+## The Undoable panel for Claude Code
+
+See what Undoable does while your agent works, beside the chat: what was backed up, what asked you, what your rules stopped, and what's waiting for your OK, with Undo, Approve and Block buttons. Needs Undoable 0.18 or newer and Claude Code 2.1.287 or newer. At the Claude Code prompt:
+
+```
+/plugin install undoable --marketplace ganeshuppula02/get
+```
+
+Answer `y` to add the marketplace, press Enter for the scope, then type `/undoable` to open the panel.
+
 ## About this repository
 
 This repository only hosts the installers and the packaged program. Undoable is in private early testing; the source code is not public. Free to use for evaluation; see the LICENSE inside the package.
