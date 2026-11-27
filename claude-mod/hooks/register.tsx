@@ -26,13 +26,41 @@ const ICON: Record<string, string> = {
   expired: '·',
 }
 
-// On Windows `undoable` is a .cmd file, which only cmd starts; elsewhere it runs as it is.
+// How to start `undoable` here. On Windows it's a .cmd file in npm's folder, which only a shell starts,
+// and the PATH Claude Code passes on may differ from the terminal's: try the ways that work, keep the first.
 let isWindows: boolean | null = null
+let launcher: string[] | null = null
+let lastError = ''
+
+const quote = (a: string) => (/^[\w.:/=@-]+$/.test(a) ? a : `'${a.replace(/'/g, "''")}'`)
 
 async function undoable($: EngineInterface, args: string[]) {
   if (isWindows === null) isWindows = (await $.session.info()).platform === 'windows'
-  const argv = isWindows ? ['cmd', '/c', 'undoable', ...args] : ['undoable', ...args]
-  return $.process.run(argv, { cwd: await $.session.cwd(), timeoutMs: 60_000 })
+  const cwd = await $.session.cwd()
+  const ways: string[][] = launcher
+    ? [launcher]
+    : isWindows
+      ? [['cmd', '/d', '/s', '/c', 'undoable'], ['cmd.exe', '/d', '/s', '/c', 'undoable'], ['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', 'undoable'], ['pwsh', '-NoProfile', '-NonInteractive', '-Command', 'undoable']]
+      : [['undoable'], ['sh', '-lc', 'undoable']]
+  const errors: string[] = []
+  for (const way of ways) {
+    const isShellText = way[0] === 'sh' || /powershell|pwsh/i.test(way[0] ?? '')
+    const argv = isShellText ? [...way.slice(0, -1), `${way.at(-1)} ${args.map(quote).join(' ')}`] : [...way, ...args]
+    try {
+      const ran = await $.process.run(argv, { cwd, timeoutMs: 60_000 })
+      const out = `${ran.stdout}${ran.stderr}`
+      if (/is not recognized|not found|No such file|cannot find|CommandNotFoundException/i.test(out) && !ran.stdout.trim().startsWith('{')) {
+        errors.push(`${way[0]}: ${out.trim().split('\n')[0]}`)
+        continue
+      }
+      launcher = way
+      return ran
+    } catch (e) {
+      errors.push(`${way[0]}: ${(e as Error).message}`)
+    }
+  }
+  lastError = errors.join(' · ').slice(0, 400)
+  throw new Error(lastError)
 }
 
 /** Read Undoable's status for the panel and the status line. */
@@ -46,8 +74,8 @@ async function refresh($: EngineInterface) {
   if (!ran || ran.exitCode !== 0 || !ran.stdout.trim().startsWith('{')) {
     const out = `${ran?.stdout ?? ''}${ran?.stderr ?? ''}`
     const problem =
-      !ran || /not recognized|not found|No such file|ENOENT/i.test(out)
-        ? `Undoable isn't installed here. Install it with:\n${isWindows ? INSTALL_WIN : INSTALL_SH}`
+      !ran
+        ? `Couldn't start undoable from Claude Code (${lastError || 'no answer'}).\nIf it isn't installed: ${isWindows ? INSTALL_WIN : INSTALL_SH}\nIf it is, restart Claude Code from a new terminal so it sees it.`
         : /Unknown command|Usage|undo button for AI agents/i.test(out)
           ? 'This panel needs Undoable 0.18 or newer: run the install line again to update.'
           : `Undoable didn't answer: ${out.trim().slice(0, 200)}`

@@ -18,7 +18,7 @@ const STATUS = {
   week: { checked: 2, backedUp: 1, waiting: 1, stopped: 0, undone: 0, promptsSaved: 0 },
 }
 
-function engine(on: any, platform = 'linux') {
+function engine(on: any, platform = 'linux', missing: string[] = []) {
   const ran: string[][] = []
   const status: (string | undefined)[] = []
   on('command.register', () => ({ value: { command: 'undoable' } }))
@@ -34,7 +34,8 @@ function engine(on: any, platform = 'linux') {
   on('ui.toast', () => ({ value: undefined }))
   on('process.run', (_: unknown, e: any) => {
     ran.push([...e.argv])
-    const isStatus = e.argv.includes('status')
+    if (missing.includes(e.argv[0])) return { value: { exitCode: 1, stdout: '', stderr: "'undoable' is not recognized as an internal or external command" } }
+    const isStatus = e.argv.join(' ').includes('status')
     return { value: { exitCode: 0, stdout: isStatus ? JSON.stringify(STATUS) : '↶ Undone s1: rm -rf build', stderr: '' } }
   })
   return { ran, status }
@@ -44,7 +45,7 @@ test('the panel shows what Undoable did, with Undo, Approve and Block buttons', 
   const { ran, status } = engine(on)
   await $.session.start({ cwd: '/proj', surface: 'terminal', isInteractive: true })
   await $.tool.call({ tool: 'Bash', command: 'rm -rf build' })
-  for (let i = 0; i < 20 && !status.some(Boolean); i++) await new Promise(r => setTimeout(r, 5))
+  await $.command.run({ command: 'undoable', args: '' } as never) // reads the status and waits for it
 
   expect(ran.some(a => a.join(' ') === 'undoable status --json')).toBe(true)
   expect(status.filter(Boolean).at(-1)).toBe('🛡️ Undoable: 1 backed up · 1 waiting for you')
@@ -62,7 +63,7 @@ test('the panel shows what Undoable did, with Undo, Approve and Block buttons', 
 test('undoing a whole session asks to confirm first', async ($, on) => {
   const { ran } = engine(on)
   await $.session.start({ cwd: '/proj', surface: 'desktop', isInteractive: true })
-  await $.command.run({ command: 'undoable', args: '' })
+  await $.command.run({ command: 'undoable', args: '' } as never)
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'session' })
   expect(ran.some(a => a.includes('--session'))).toBe(false)
@@ -74,6 +75,13 @@ test('undoing a whole session asks to confirm first', async ($, on) => {
 test('on Windows it starts undoable through cmd (it is a .cmd file there)', async ($, on) => {
   const { ran } = engine(on, 'windows')
   await $.session.start({ cwd: '/proj', surface: 'terminal', isInteractive: true })
-  await $.command.run({ command: 'undoable', args: '' })
-  expect(ran.some(a => a.join(' ') === 'cmd /c undoable status --json')).toBe(true)
+  await $.command.run({ command: 'undoable', args: '' } as never)
+  expect(ran.some(a => a.join(' ') === 'cmd /d /s /c undoable status --json')).toBe(true)
+})
+
+test('on Windows, when cmd cannot find undoable, it tries PowerShell', async ($, on) => {
+  const { ran } = engine(on, 'windows', ['cmd', 'cmd.exe'])
+  await $.session.start({ cwd: '/proj', surface: 'terminal', isInteractive: true })
+  await $.command.run({ command: 'undoable', args: '' } as never)
+  expect(ran.some(a => a[0] === 'powershell.exe' && a.at(-1) === 'undoable status --json')).toBe(true)
 })
