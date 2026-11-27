@@ -48,7 +48,7 @@ test('the panel shows what Undoable did, with Undo, Approve and Block buttons', 
   await $.command.run({ command: 'undoable', args: '' } as never) // reads the status and waits for it
 
   expect(ran.some(a => a.join(' ') === 'undoable status --json')).toBe(true)
-  expect(status.filter(Boolean).at(-1)).toBe('🛡️ Undoable: 1 backed up · 1 waiting for you')
+  expect(status.filter(Boolean).at(-1)).toBe('🛡️ 1 backed up · 1 waiting for you')
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /rm -rf build/ }))?.text).toMatch(/💾 s1 rm -rf build/)

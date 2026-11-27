@@ -1,6 +1,6 @@
 {
   "name": "undoable",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A live Undoable panel beside the chat: what was backed up, what's waiting for you, and Undo buttons",
   "types": "./types/index.d.ts"
 }

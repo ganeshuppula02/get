@@ -87,7 +87,7 @@ async function refresh($: EngineInterface) {
   await update($, view, v => ({ ...v, status, problem: null }))
   const w = status.week
   const waiting = status.pending.length
-  $.ui.status(`🛡️ Undoable: ${w.backedUp} backed up${w.stopped ? ` · ${w.stopped} stopped` : ''}${waiting ? ` · ${waiting} waiting for you` : ''}`)
+  $.ui.status(`🛡️ ${w.backedUp} backed up${w.stopped ? ` · ${w.stopped} stopped` : ''}${waiting ? ` · ${waiting} waiting for you` : ''}`)
 }
 
 /** A button: run the same undoable command a person would type, show its answer, then refresh. */
