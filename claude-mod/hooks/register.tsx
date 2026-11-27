@@ -90,13 +90,23 @@ async function refresh($: EngineInterface) {
   $.ui.status(`🛡️ ${w.backedUp} backed up${w.stopped ? ` · ${w.stopped} stopped` : ''}${waiting ? ` · ${waiting} waiting for you` : ''}`)
 }
 
+let isBusy = false // a second press while one runs (a double click) is ignored
+
 /** A button: run the same undoable command a person would type, show its answer, then refresh. */
 async function act($: EngineInterface, args: string[]) {
-  const ran = await undoable($, [...args, '--yes'])
-  const said = (ran.stdout + ran.stderr).trim().split('\n').slice(0, 3).join('\n')
-  await update($, view, v => ({ ...v, message: said || (ran.exitCode === 0 ? 'Done.' : "It didn't work."), isConfirmingSession: false }))
-  $.ui.toast(said.split('\n')[0] || 'Done.')
-  await refresh($)
+  if (isBusy) return
+  isBusy = true
+  try {
+    const ran = await undoable($, [...args, '--yes'])
+    const said = (ran.stdout + ran.stderr).trim().split('\n').slice(0, 3).join('\n')
+    const ok = ran.exitCode === 0
+    const message = `${ok ? '✅' : '⚠️'} ${said.replace(/^[✅↶🛑❌⚠️\s]+/u, '') || (ok ? 'Done.' : "It didn't work.")}`
+    await update($, view, v => ({ ...v, message, isConfirmingSession: false }))
+    $.ui.toast(message.split('\n')[0] ?? message)
+    await refresh($)
+  } finally {
+    isBusy = false
+  }
 }
 
 export const register: Register = on => {
